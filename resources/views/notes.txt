@@ -1,0 +1,57 @@
+1-composer create-project --prefer-dist laravel/laravel pms-system
+
+2-php artisan migrate
+
+3-composer require laravel/breeze --dev
+
+4-php artisan breeze:install
+
+--blade
+--no
+--pestphp
+
+5-php artisan migrate
+6-npm install
+7-npm run dev
+
+8-composer require spatie/laravel-permission
+
+9-php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
+
+10-php artisan config:clear
+
+11- php artisan migrate
+
+12-php artisan make:controller PermissionController
+
+13-php artisan make:controller RoleController
+
+14-php artisan make:model Project -m
+
+15-php artisan make:controller ProjectController -r
+
+16-php artisan make:model Client -m
+
+17-php artisan make:controller ClientController -r
+
+18-php artisan make:model Setting -m
+
+19-php artisan make:controller SettingController
+
+20-php artisan make:controller UserController -r
+
+21-php artisan make:model Source -m
+
+22-php artisan make:controller SourceController -r
+
+23-php artisan make:model KnowledgeBase -m
+
+24-php artisan make:controller KnowledgeBaseController -r
+
+25-php artisan make:model Department -m
+
+26-php artisan make:controller DepartmentController -r
+
+27-php artisan make:model Team -m
+
+28-php artisan make:controller TeamController -r
