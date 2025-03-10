@@ -1,10 +1,12 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Helpers\Helper;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class UserTaskController extends Controller
 {
@@ -15,17 +17,17 @@ class UserTaskController extends Controller
         $teamId           = Auth::user()->team_id;
         $userDepartmentId = Auth::user()->department_id;
         $userDepartments  = Auth::user()->user_departments;
-       // Dasbord task Query
+        // Dasbord task Query
         $filteredQuery = Task::with([
-            'project:id,project_name', 
+            'project:id,project_name',
             'team:id,name',
-            'assign', 
-            'taskAssignments.user:id,name', 
+            'assign',
+            'taskAssignments.user:id,name',
             'taskType:id,title',
             'taskStage:id,title',
             'taskPriority:id,title',
             'author:id,name',
-            'taskStatusLogs.task_status'
+            'taskStatusLogs.task_status',
         ]);
 
         if (in_array('Super Admin', $userRole)) {
@@ -127,43 +129,43 @@ class UserTaskController extends Controller
         // Apply search filter
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-        
+
             $filteredQuery->where(function ($query) use ($searchTerm) {
                 // Basic task fields
                 $query->where('tasks.id', 'like', '%' . $searchTerm . '%')
                     ->orWhere('tasks.project_id', 'like', '%' . $searchTerm . '%')
                     ->orWhere('tasks.task_name', 'like', '%' . $searchTerm . '%')
                     ->orWhere('tasks.task_description', 'like', '%' . $searchTerm . '%');
-        
+
                 // Related table searches
                 $query->orWhereHas('project', function ($q) use ($searchTerm) {
                     $q->where('project_name', 'like', '%' . $searchTerm . '%');
                 });
-        
+
                 $query->orWhereHas('team', function ($q) use ($searchTerm) {
                     $q->where('name', 'like', '%' . $searchTerm . '%');
                 });
-        
+
                 $query->orWhereHas('taskType', function ($q) use ($searchTerm) {
                     $q->where('title', 'like', '%' . $searchTerm . '%');
                 });
-        
+
                 $query->orWhereHas('taskStage', function ($q) use ($searchTerm) {
                     $q->where('title', 'like', '%' . $searchTerm . '%');
                 });
-        
+
                 $query->orWhereHas('taskPriority', function ($q) use ($searchTerm) {
                     $q->where('title', 'like', '%' . $searchTerm . '%');
                 });
-        
+
                 $query->orWhereHas('author', function ($q) use ($searchTerm) {
                     $q->where('name', 'like', '%' . $searchTerm . '%');
                 });
-        
+
                 $query->orWhereHas('taskAssignments.user', function ($q) use ($searchTerm) {
                     $q->where('name', 'like', '%' . $searchTerm . '%');
                 });
-        
+
                 $query->orWhereHas('taskStatusLogs.task_status', function ($q) use ($searchTerm) {
                     $q->where('title', 'like', '%' . $searchTerm . '%');
                 });
@@ -298,9 +300,11 @@ class UserTaskController extends Controller
         //     ->value('total_time');
 
         $totalTimeLogged = $task->timeLogs()
+            ->whereNotNull('start_time')
+            ->whereNotNull('end_time')
             ->selectRaw('SEC_TO_TIME(SUM(TIMESTAMPDIFF(SECOND, start_time, end_time))) AS total_time')
-            // ->where('user_id', $user->id)
             ->value('total_time');
+
 
         $getUsers      = User::where('team_id', $task->team_id)->get();
         $AssignedUsers = User::whereIn('id', $task->taskAssignments->pluck('user_id'))->get(); // Fetch assigned users
@@ -332,6 +336,8 @@ class UserTaskController extends Controller
                 'task_status_id' => $request->input('task_status'),
                 'user_id'        => Auth::id(),
             ]);
+
+            Helper::createTaskNotification($task->csr, $task->id, "Team Lead to verify task " . $task->id);
         }
 
         return response()->json([

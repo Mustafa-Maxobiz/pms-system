@@ -110,6 +110,8 @@ class ReportingController extends Controller implements HasMiddleware
         // Calculate total time for each task based on from_date and to_date
         foreach ($tasks as $task) {
             $task->total_time = $task->timeLogs()
+                ->whereNotNull('start_time')
+                ->whereNotNull('end_time')
                 ->whereBetween('start_time', [$fromDate, $toDate]) // Only get logs within selected dates
                 ->selectRaw("SEC_TO_TIME(SUM(TIMESTAMPDIFF(SECOND, start_time, end_time))) AS total_time")
                 ->value('total_time') ?? '00:00:00';

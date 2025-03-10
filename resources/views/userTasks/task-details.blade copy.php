@@ -244,82 +244,116 @@
 
 
 <script>
-    $(document).ready(function () {
-        const saveTimeLogUrl = "{{ route('projects.tasks.save-time-log', ['project' => $task->project_id, 'task' => $task->id]) }}";
+    $(document).ready(function() {
+        const saveTimeLogUrl =
+            "{{ route('projects.tasks.save-time-log', ['project' => $task->project_id, 'task' => $task->id]) }}";
+        const viewTaskUrlTemplate =
+            `{{ route('projects.tasks.details', ['project' => ':project', 'task' => ':task']) }}`;
         const browserKey = `${navigator.userAgent}-${navigator.platform}-${navigator.language}`;
+        const timers = {};
         let timerInterval;
         let isRunning = false;
         let startTime;
         let elapsedTime = 0;
+        async function stopTimer(taskId, startPauseBtn, timerDisplay, projectId) {
+            clearInterval(timerInterval);
+            isRunning = false;
+            startPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+            const saveResponse = await saveTimeLog("stop", projectId, taskId);
+
+            if (saveResponse?.status === "error") {
+                console.error("Error stopping timer:", saveResponse.message);
+                return;
+            }
+
+            localStorage.setItem(`timerState-${taskId}`, JSON.stringify({
+                isRunning,
+                elapsedTime,
+                browserKey
+            }));
+            $(".TimeLogged").text(formatTime(elapsedTime));
+            timerDisplay.textContent = formatTime(elapsedTime);
+        }
 
         function formatTime(milliseconds) {
-            const totalSeconds = Math.floor(milliseconds / 1000);
+            const totalSeconds = Math.floor(milliseconds / 1000); // Normalize to seconds
             const hours = Math.floor(totalSeconds / 3600);
             const minutes = Math.floor((totalSeconds % 3600) / 60);
             const seconds = totalSeconds % 60;
             return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
         }
 
-        function getStorage(key) {
-            try {
-                return JSON.parse(localStorage.getItem(key)) || null;
-            } catch {
-                return null;
-            }
-        }
-
-        function setStorage(key, value) {
-            localStorage.setItem(key, JSON.stringify(value));
-        }
-
         async function saveTimeLog(action, projectId, taskId) {
+            const now = new Date().toISOString();
             try {
                 const response = await fetch(saveTimeLogUrl, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute("content"),
+                        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]')
+                            .getAttribute("content"),
                     },
-                    body: JSON.stringify({ action, project_id: projectId, task_id: taskId, timestamp: new Date().toISOString() }),
+                    body: JSON.stringify({
+                        action,
+                        project_id: projectId,
+                        task_id: taskId,
+                        timestamp: now
+                    }),
                 });
 
                 const result = await response.json();
-                if (!response.ok) throw new Error(result.message || "Failed to save time log.");
+                if (!response.ok) {
+                    console.error("Backend Error:", result);
+                    throw new Error(result.message || "Failed to save time log.");
+                }
+
                 return result;
             } catch (error) {
                 console.error("Failed to save time log:", error);
-                return { status: "error", message: error.message };
+                return {
+                    status: "error",
+                    message: error.message
+                };
             }
         }
 
-        async function stopTimer(taskId, startPauseBtn, timerDisplay, projectId) {
-            clearInterval(timerInterval);
-            isRunning = false;
-            startPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-            
-            const saveResponse = await saveTimeLog("stop", projectId, taskId);
-            if (saveResponse?.status === "error") return;
-
-            setStorage(`timerState-${taskId}`, { isRunning, elapsedTime, browserKey });
-
-            // Remove active task entry to prevent duplicate message
-            localStorage.removeItem("activeTask");
-
-            $(".TimeLogged").text(formatTime(elapsedTime));
-            timerDisplay.textContent = formatTime(elapsedTime);
-
-            // Notify other tabs
-            localStorage.setItem("stopTimer", JSON.stringify({ taskId, timestamp: Date.now() }));
+        async function checkActiveTask(projectId, taskId) {
+            try {
+                const response = await fetch(saveTimeLogUrl, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]')
+                            .getAttribute("content"),
+                    },
+                    body: JSON.stringify({
+                        action: "check",
+                        project_id: projectId,
+                        task_id: taskId
+                    }),
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.message || "Failed to check active task.");
+                }
+                return result;
+            } catch (error) {
+                console.error("Failed to check active task:", error);
+                return {
+                    status: "error",
+                    message: error.message,
+                    data: error
+                };
+            }
         }
 
-
-        $(".startPauseBtn").each(function () {
+        $(".startPauseBtn").each(function() {
             const startPauseBtn = this;
             const projectId = $(this).data("project-id");
             const taskId = $(this).data("task-id");
             const timerDisplay = document.getElementById(`timer-${taskId}`);
-            const savedState = getStorage(`timerState-${taskId}`);
 
+            const savedState = JSON.parse(localStorage.getItem(`timerState-${taskId}`));
             if (savedState) {
                 elapsedTime = savedState.elapsedTime || 0;
                 if (savedState.isRunning && savedState.browserKey === browserKey) {
@@ -335,121 +369,221 @@
                 }
             }
 
-            startPauseBtn.addEventListener("click", async function () {
-                const activeTaskData = getStorage("activeTask");
-
+            startPauseBtn.addEventListener("click", async function() {
                 if (!isRunning) {
-                    if (activeTaskData && activeTaskData.taskId) {
+                    const activeResponse = await checkActiveTask(projectId, taskId);
+
+                    if (activeResponse?.status === "error" && activeResponse.activeTask
+                        ?.toString() !== taskId.toString()) {
+                        const taskUrl = viewTaskUrlTemplate
+                            .replace(':project', activeResponse.activeProject)
+                            .replace(':task', activeResponse.activeTask);
+
                         $(".alert-danger").html(`
-                            ${activeTaskData.taskId !== taskId
-                            ? 'Another task is already running. Stop it first. <button class="btn btn-dark p-2 bg-gray btn-sm view-task-details" data-id="' + activeTaskData.taskId + '">View Task Details</button>'
-                            : 'Task timer is already running. <button class="btn btn-dark p-2 bg-gray btn-sm stop-active-task">Stop Active Task</button>'
-                        }
-                        `).removeClass("d-none");
+                        ${activeResponse.message}
+                        <button class="btn btn-dark p-2 bg-gray btn-sm view-task-details" data-id="${activeResponse.activeTask}">View Task Details</button>
+                    `).removeClass("d-none");
 
-                        $(".stop-active-task").on("click", async function () {
-                            await stopTimer(activeTaskData.taskId, startPauseBtn, timerDisplay, activeTaskData.projectId);
-                            $(".alert-danger").addClass("d-none");
+                        $("#stopActiveTimer").on("click", async function() {
+                            const stopResponse = await saveTimeLog("stop",
+                                activeResponse.activeProject, activeResponse
+                                .activeTask);
 
-                            // Remove active task from storage
-                            localStorage.removeItem("activeTask");
-
-                            startPauseBtn.click();
+                            if (stopResponse?.status === "success") {
+                                $(".alert-danger").addClass("d-none");
+                                startPauseBtn.click();
+                            } else {
+                                $(".alert-danger").html(
+                                    `Failed to stop the active timer. ${stopResponse.message}`
+                                );
+                            }
                         });
 
                         return;
                     }
 
-                    startTime = Date.now();
-                    elapsedTime = 0;
+                    //startTime = Date.now() - elapsedTime;
+                    startTime = Date
+                        .now(); // Set start time immediately when the timer starts
+                    elapsedTime = 0; // Reset elapsed time to 0
+
                     timerInterval = setInterval(() => {
-                        elapsedTime = Date.now() - startTime;
-                        timerDisplay.textContent = formatTime(elapsedTime);
+                        const now = Date.now();
+                        elapsedTime = now - startTime;
+
+                        // Ensure the display aligns with exact elapsed seconds
+                        const displayTime = Math.floor(elapsedTime / 1000) *
+                            1000; // Normalize to exact second
+                        timerDisplay.textContent = formatTime(displayTime);
                     }, 1000);
+
+
                     isRunning = true;
                     startPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
-
                     const saveResponse = await saveTimeLog("start", projectId, taskId);
-                    if (saveResponse?.status === "error") return;
 
-                    setStorage(`timerState-${taskId}`, { isRunning, startTime, browserKey });
-                    setStorage("activeTask", { projectId, taskId });
+                    if (saveResponse?.status === "error") {
+                        console.error("Error starting timer:", saveResponse.message);
+                        return;
+                    }
+
+                    localStorage.setItem(`timerState-${taskId}`, JSON.stringify({
+                        isRunning,
+                        startTime,
+                        browserKey
+                    }));
                 } else {
-                    await stopTimer(taskId, startPauseBtn, timerDisplay, projectId);
-                    localStorage.removeItem("activeTask");
-                    //localStorage.removeItem(`timerState-${taskId}`);
+                    clearInterval(timerInterval);
+                    isRunning = false;
+                    startPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    const saveResponse = await saveTimeLog("stop", projectId, taskId);
+
+                    if (saveResponse?.status === "error") {
+                        console.error("Error stopping timer:", saveResponse.message);
+                        return;
+                    }
+
+                    localStorage.setItem(`timerState-${taskId}`, JSON.stringify({
+                        isRunning,
+                        elapsedTime,
+                        browserKey
+                    }));
+                    $(".TimeLogged").text(formatTime(elapsedTime));
+                    timerDisplay.textContent = formatTime(elapsedTime);
                 }
             });
+
+            @if (in_array('CSRs', $userRole))
+                //  startPauseBtn.click();
+            @endif
+
         });
 
-        // Listen for stop event in other tabs
-        window.addEventListener("storage", (event) => {
-            if (event.key === "stopTimer") {
-                const data = JSON.parse(event.newValue);
-                if (data && data.taskId) {
-                    $(".startPauseBtn").each(function () {
-                        const taskId = $(this).data("task-id");
-                        const projectId = $(this).data("project-id");
-                        const startPauseBtn = this;
-                        const timerDisplay = document.getElementById(`timer-${taskId}`);
+        // window.addEventListener("beforeunload", () => {
+        //     $(".startPauseBtn").each(function() {
+        //         const taskId = $(this).data("task-id");
+        //         const savedState = JSON.parse(localStorage.getItem(`timerState-${taskId}`));
+        //         if (savedState?.isRunning) {
+        //             saveTimeLog("reload", savedState.projectId, taskId);
+        //         }
+        //     });
+        // });
 
-                        if (taskId === data.taskId) {
-                            stopTimer(taskId, startPauseBtn, timerDisplay, projectId);
-                        }
-                    });
-                }
-            }
-        });
-
-        // Track navigation and prevent accidental exits
+        // Flag to track if navigation is happening
         let isNavigating = false;
 
+        // Internal navigation detect karne ke liye
         document.addEventListener("click", (event) => {
-            if (event.target.closest("a")) {
+            if (event.target.tagName === "A" || event.target.closest("a")) {
                 isNavigating = true;
-                setTimeout(() => (isNavigating = false), 300);
+                setTimeout(() => {
+                    isNavigating = false; // Reset after delay
+                }, 300); // Thoda zyada delay taake race condition avoid ho
             }
         });
 
+        // Back/Forward button detect karne ke liye
         window.addEventListener("popstate", () => {
             isNavigating = true;
-            setTimeout(() => (isNavigating = false), 300);
+            setTimeout(() => {
+                isNavigating = false;
+            }, 300);
         });
 
-        window.addEventListener("beforeunload", (event) => {
-            if (!isNavigating) {
-                stopAllTimers();
-                event.preventDefault();
-                event.returnValue = '';
+        // Visibility change to handle tab switching
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "hidden") {
+                // Tab switch ya minimize hua, yahan kuch nahi karna
             }
         });
 
-        function stopAllTimers() {
-            $(".startPauseBtn").each(function () {
+        // Browser/tab close hone par
+        window.addEventListener("beforeunload", (event) => {
+            if (!isNavigating) {
+                stopTimerAndSaveLog();
+                event.preventDefault();
+                event.returnValue = ''; // Confirmation message ke liye
+            }
+        });
+
+        function stopTimerAndSaveLog() {
+            $(".startPauseBtn").each(function() {
                 const taskId = $(this).data("task-id");
                 const projectId = $(this).data("project-id");
                 const startPauseBtn = this;
                 const timerDisplay = document.getElementById(`timer-${taskId}`);
-                const savedState = getStorage(`timerState-${taskId}`);
+
+                const savedState = JSON.parse(localStorage.getItem(`timerState-${taskId}`));
 
                 if (savedState?.isRunning) {
+                    // 1. Pause Button Change
                     startPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+
+                    // 2. Stop Timer UI
                     clearInterval(timerInterval);
 
+                    // 3. Save Time Log Backend (Reliable Request Using Beacon API)
                     const formData = new FormData();
                     formData.append("action", "stop");
                     formData.append("project_id", projectId);
                     formData.append("task_id", taskId);
-                    formData.append("_token", document.querySelector('meta[name="csrf-token"]').getAttribute("content"));
+                    formData.append("_token", document.querySelector('meta[name="csrf-token"]')
+                        .getAttribute("content"));
 
                     navigator.sendBeacon(saveTimeLogUrl, formData);
 
-                    setStorage(`timerState-${taskId}`, { isRunning: false, elapsedTime: savedState.elapsedTime, browserKey: savedState.browserKey });
+                    // 4. Update Local Storage
+                    localStorage.setItem(`timerState-${taskId}`, JSON.stringify({
+                        isRunning: false,
+                        elapsedTime: savedState.elapsedTime,
+                        browserKey: savedState.browserKey
+                    }));
+
+                    // 5. Update UI
                     $(".TimeLogged").text(formatTime(savedState.elapsedTime));
                     timerDisplay.textContent = formatTime(savedState.elapsedTime);
                 }
             });
         }
+
+
+
+        // window.addEventListener("beforeunload", (event) => {
+        //     $(".startPauseBtn").each(async function() {
+        //         const taskId = $(this).data("task-id");
+        //         const projectId = $(this).data("project-id");
+        //         const startPauseBtn = this;
+        //         const timerDisplay = document.getElementById(`timer-${taskId}`);
+
+        //         const savedState = JSON.parse(localStorage.getItem(`timerState-${taskId}`));
+
+        //         if (savedState?.isRunning) {
+        //             // 1. Pause Button Change
+        //             startPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+
+        //             // 2. Stop Timer
+        //             clearInterval(timerInterval);
+
+        //             // 3. Save Time Log
+        //             await saveTimeLog("stop", projectId, taskId);
+
+        //             // 4. Update Local Storage
+        //             localStorage.setItem(`timerState-${taskId}`, JSON.stringify({
+        //                 isRunning: false,
+        //                 elapsedTime: savedState.elapsedTime,
+        //                 browserKey: savedState.browserKey
+        //             }));
+
+        //             // 5. Update UI
+        //             $(".TimeLogged").text(formatTime(savedState.elapsedTime));
+        //             timerDisplay.textContent = formatTime(savedState.elapsedTime);
+        //         }
+        //     });
+
+        //     event.preventDefault();
+        //     event.returnValue = '';
+        // });
+
 
         var editor1 = new RichTextEditor("#summernote", {
             editorResizeMode: "both"

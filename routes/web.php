@@ -98,8 +98,8 @@ Route::middleware('auth')->group(function () {
                 Route::post('/store', [ConversationController::class, 'store'])->name('store'); // Create a new conversation message
                 Route::get('/load-conversations', [ConversationController::class, 'loadConversations'])->name('loadConversations');
                 Route::get('/{conversation}', [ConversationController::class, 'show'])->name('show'); // Show a specific conversation
-                                                                                                      //Route::put('/{conversation}', [ConversationController::class, 'update'])->name('update'); // Update a specific conversation
-                                                                                                      //Route::delete('/{conversation}', [ConversationController::class, 'destroy'])->name('destroy'); // Delete a specific conversation
+                //Route::put('/{conversation}', [ConversationController::class, 'update'])->name('update'); // Update a specific conversation
+                //Route::delete('/{conversation}', [ConversationController::class, 'destroy'])->name('destroy'); // Delete a specific conversation
 
             });
         });
@@ -182,10 +182,10 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('target')->name('target.')->group(function () {
         Route::get('/', [TeamTargetController::class, 'target'])->name('index');
-        Route::post('/store', [TeamTargetController:: class, 'store'])->name('store');
+        Route::post('/store', [TeamTargetController::class, 'store'])->name('store');
         Route::get('/{target_id}/edit', [TeamTargetController::class, 'edit'])->name('edit');
-        Route::post('/update', [TeamTargetController:: class, 'update'])->name('update');
-        Route::post('/save-all-targets', [TeamTargetController:: class, 'saveAllTargets'])->name('save.all.targets');
+        Route::post('/update', [TeamTargetController::class, 'update'])->name('update');
+        Route::post('/save-all-targets', [TeamTargetController::class, 'saveAllTargets'])->name('save.all.targets');
         Route::get('/get-target-teams', [TeamTargetController::class, 'getTargetTeams'])->name('get.target.teams');
         Route::get('/get-dep-teams', [TeamTargetController::class, 'getDepTeams'])->name('get.dep.teams');
         Route::get('/show', [TeamTargetController::class, 'show'])->name('show');
@@ -204,7 +204,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/update-status', [UserController::class, 'updateStatus'])->name('status');
         Route::post('/{id}/update-departments', [UserController::class, 'updateUserDepartments'])->name('updateUserDepartments');
         Route::get('/{id}', [UserController::class, 'show']);
-
     });
 
     Route::prefix('task-types')->name('task-types.')->group(function () {
@@ -296,7 +295,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/get-task-progress', [DashboardController::class, 'getTaskProgress'])->name('get.task.progress');
     Route::get('/get-today-work-time', [DashboardController::class, 'getOnlineToOfflineTime'])->name('get.today.work.time');
 
-    
+
 
     Route::get('/chat', [App\Http\Controllers\vendor\Chatify\MessagesController::class, 'index'])->name('chat');
     Route::get('/get-all-users', [App\Http\Controllers\vendor\Chatify\MessagesController::class, 'getAllUsers'])->name('getAllUsers');
@@ -312,7 +311,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/my-progress', [ReportingController::class, 'myProgress'])->name('my.progress');
     });
 
-    
+    Route::get('/unassigned-tasks', [DashboardController::class, 'getUnassignedTasks']);
+    Route::get('/delayed-tasks', [DashboardController::class, 'getDelayedTasks']);
+    Route::get('/projects-without-tasks', [DashboardController::class, 'getProjectsWithoutTasks']);
+    Route::get('/pending-payments', [DashboardController::class, 'getPendingPayments']);
 });
 
 Route::any('clear-all', function () {

@@ -67,12 +67,13 @@ class Helper
             ->count();
     }
 
-    public static function createTaskNotification($userId, $taskId, $message = "You have been assigned a new task.")
+    public static function createTaskNotification($userId, $taskId, $message, $is_admin = '')
     {
         return TaskNotification::create([
             'user_id' => $userId,
             'task_id' => $taskId,
             'type'    => 'task_assigned',
+            'is_admin'    => 'read',
             'message' => $message,
         ]);
     }

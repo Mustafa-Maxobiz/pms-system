@@ -75,12 +75,9 @@ class SubDepartmentController extends Controller
 
             // Generate delete action if permission is granted
             $deleteAction = Auth::user()->can('Delete Sub-Department')
-                ? '<a href="#" class="btn btn-warning btn-sm py-2" title="Delete" onclick="confirmDelete(' . $subDepartment->id . ')">
-                    <i class="fa fa-trash"></i>
-                  </a>
-                  <form id="delete-form-' . $subDepartment->id . '" action="' . route('subdepartments.destroy', $subDepartment->id) . '" method="POST" style="display:none;">
-                    ' . csrf_field() . method_field('DELETE') . '
-                  </form>'
+                ? '<button class="btn btn-warning btn-sm py-2 delete-sub-department-btn" title="Delete" data-id="' . $subDepartment->id . '">
+                    <i class="fa fa-trash" aria-hidden="true"></i>
+               </button>'
                 : '';
 
             // Combine actions
@@ -184,11 +181,22 @@ class SubDepartmentController extends Controller
      */
     public function destroy($id)
     {
-        $subDepartment = SubDepartment::findOrFail($id);
-        $subDepartment->delete();
+        try {
+            $subDepartment = SubDepartment::findOrFail($id);
+            $subDepartment->delete();
 
-        return redirect()->route('subdepartments.list')->with('success', 'Sub-Department deleted successfully.');
+            return response()->json([
+                'message' => 'Sub-Department deleted successfully.',
+                'success' => true
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to delete sub-department: ' . $e->getMessage(),
+                'success' => false
+            ], 500);
+        }
     }
+
 
     /**
      * Show the details of the sub-department.

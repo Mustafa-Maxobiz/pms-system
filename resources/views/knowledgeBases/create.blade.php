@@ -90,8 +90,7 @@
                                         id="attachments"
                                         name="attachments[]"
                                         multiple
-                                        accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.zip"
-                                    >
+                                        accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.zip">
                                     @error('attachments')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror

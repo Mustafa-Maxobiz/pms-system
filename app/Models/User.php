@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -107,7 +108,6 @@ class User extends Authenticatable implements ContractsAuditable
             ->where('model_has_roles.model_type', User::class)
             ->where('model_has_roles.model_id', $this->id)
             ->select('roles.name')
-            ->first()?->name; // `first()` ka use pehla record lene ke liye, `?->name` to get only role name
+            ->first()?->name;
     }
-
 }

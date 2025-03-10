@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Helpers\Helper;
 use App\Models\Task;
+use App\Models\Project;
+use App\Models\Payment;
 use App\Models\User;
 use App\Models\UserLog;
 use Carbon\Carbon;
@@ -121,17 +123,90 @@ class DashboardController extends Controller
             ->whereRaw($whereRawCondition)
             ->count();
     }
+    // Unassigned Task
     public function getUnassignedTasks()
     {
-        $tasks = DB::table('tasks')
-        ->join('task_stages', 'tasks.task_stage', '=', 'task_stages.id')
-        ->where('task_stages.title', 'Open') 
-        ->select('tasks.id as task_id', 'tasks.task_name')
-        ->get();
+        $tasks = Task::with(['project.source', 'taskStage'])
+            ->whereHas('taskStage', function ($query) {
+                $query->where('title', 'Open');
+            })
+            ->get(['id as task_id', 'task_name', 'project_id']);
+
+        $tasks = $tasks->map(function ($task) {
+            return [
+                'task_id' => $task->task_id,
+                'task_name' => $task->task_name,
+                'source_id' => $task->project->source_id,
+                'source_name' => $task->project->source->source_name ?? 'N/A',
+            ];
+        });
 
         return response()->json($tasks);
     }
+    // Delayed Task
+    public function getDelayedTasks()
+    {
+        $tasks = Task::with(['project.source', 'taskStage'])
+            ->whereHas('taskStage', function ($query) {
+                $query->where('title', 'Delayed');
+            })
+            ->get(['id as task_id', 'task_name', 'project_id']);
 
+        $tasks = $tasks->map(function ($task) {
+            return [
+                'task_id' => $task->task_id,
+                'task_name' => $task->task_name,
+                'project_id' => $task->project_id,
+            ];
+        });
+
+        return response()->json($tasks);
+    }
+    // Project Without Task
+    public function getProjectsWithoutTasks()
+    {
+        $projects = Project::with('source')
+            ->leftJoin('tasks', 'projects.id', '=', 'tasks.project_id')
+            ->leftJoin('sources', 'projects.source_id', '=', 'sources.id')
+            ->whereNull('tasks.id')
+            ->select('projects.id as project_id', 'projects.project_name', 'projects.source_id', 'sources.source_name')
+            ->get();
+
+        $projects = $projects->map(function ($project) {
+            return [
+                'project_id' => $project->project_id,
+                'project_name' => $project->project_name,
+                'source_id' => $project->source_id,
+                'source_name' => $project->source_name ?? 'N/A',
+            ];
+        });
+
+        return response()->json($projects);
+    }
+    // Pending Payment
+    public function getPendingPayments()
+    {
+        $payments = Payment::with('project.source')
+            ->where('remaining_payment', '>', 0)
+            ->orderBy('project_id')
+            ->select('payments.id as payment_id', 'payments.project_id', 'payments.title', 'payments.remaining_payment', 'projects.project_name', 'sources.source_name')
+            ->leftJoin('projects', 'payments.project_id', '=', 'projects.id')
+            ->leftJoin('sources', 'projects.source_id', '=', 'sources.id')
+            ->get();
+
+        $payments = $payments->map(function ($payment) {
+            return [
+                'payment_id' => $payment->payment_id,
+                'project_id' => $payment->project_id,
+                'title' => $payment->title,
+                'remaining_payment' => $payment->remaining_payment,
+                'project_name' => $payment->project_name ?? 'N/A',
+                'source_name' => $payment->source_name ?? 'N/A',
+            ];
+        });
+
+        return response()->json($payments);
+    }
     public function getTimeProgress(Request $request)
     {
         $userId        = $request->user_id;

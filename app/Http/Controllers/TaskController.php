@@ -258,7 +258,7 @@ class TaskController extends Controller implements HasMiddleware
                         'user_id' => $assignId,
                     ]);
 
-                    Helper::createTaskNotification($assignId, $task->id);
+                    Helper::createTaskNotification($assignId, $task->id, "You have been assigned a task!");
                     $message = "You have been assigned a new task!";
                     Helper::broadcastTaskNotifications($message, $assignId);
                 }
@@ -337,21 +337,24 @@ class TaskController extends Controller implements HasMiddleware
             $newTotalTime = $request->input('task_time');
 
             if ($newTotalTime) {
-
                 $totalSeconds = DB::select("SELECT TIME_TO_SEC(?) AS seconds", [$newTotalTime])[0]->seconds;
 
                 $currentTotalTime = $task->timeLogs()
                     ->selectRaw('SUM(TIMESTAMPDIFF(SECOND, start_time, end_time)) AS total_seconds')
                     ->value('total_seconds');
 
-                $secondsToAdd = $totalSeconds - $currentTotalTime;
+                $secondsDifference = $totalSeconds - $currentTotalTime;
 
-                if ($secondsToAdd > 0) {
-                    $lastLog = $task->timeLogs()->latest('end_time')->first();
-                    if ($lastLog) {
-                        $lastLog->end_time = DB::raw("ADDTIME(end_time, SEC_TO_TIME($secondsToAdd))");
-                        $lastLog->save();
+                $lastLog = $task->timeLogs()->latest('end_time')->first();
+
+                if ($lastLog) {
+                    if ($secondsDifference > 0) {
+                        $lastLog->end_time = DB::raw("ADDTIME(end_time, SEC_TO_TIME($secondsDifference))");
+                    } elseif ($secondsDifference < 0) {
+                        $lastLog->end_time = DB::raw("SUBTIME(end_time, SEC_TO_TIME(ABS($secondsDifference)))");
                     }
+
+                    $lastLog->save();
                 }
             }
 
@@ -497,6 +500,8 @@ class TaskController extends Controller implements HasMiddleware
         })->orderBy('name', 'ASC')->get();
 
         $totalTime = $task->timeLogs()
+            ->whereNotNull('start_time')
+            ->whereNotNull('end_time')
             ->selectRaw('SEC_TO_TIME(SUM(TIMESTAMPDIFF(SECOND, start_time, end_time))) AS total_time')
             ->value('total_time');
 
@@ -512,73 +517,67 @@ class TaskController extends Controller implements HasMiddleware
             'task_id'    => 'required|integer',
             'project_id' => 'required|integer',
         ]);
-
+    
         $action    = $request->input('action');
         $taskId    = $request->input('task_id');
         $projectId = $request->input('project_id');
         $userId    = Auth::id();
-
+    
         DB::beginTransaction();
-
+    
         try {
             $activeLog = TimeLog::where('user_id', $userId)->whereNull('end_time')->first();
-
+    
             if ($action === 'check') {
                 if ($activeLog) {
                     return response()->json([
-                        'status'        => 'error',
+                        'status'        => 'active',
                         'activeTask'    => $activeLog->task_id,
                         'activeProject' => $activeLog->project_id,
-                        'message'       => 'You have an active timer on another task.',
+                        'start_time'    => $activeLog->start_time,
+                        'message'       => 'You have an active timer running.',
                     ]);
                 }
-                return response()->json(['status' => 'success', 'message' => 'No active timer.']);
+                return response()->json(['status' => 'no_active_timer']);
             }
-
+    
             if ($action === 'start') {
-                if ($activeLog && $activeLog->task_id != $taskId) {
+                if ($activeLog) {
                     return response()->json([
                         'status'        => 'error',
+                        'message'       => 'An active timer already exists. Stop it before starting a new one.',
                         'activeTask'    => $activeLog->task_id,
                         'activeProject' => $activeLog->project_id,
-                        'message'       => 'An active timer already exists for another task.',
                     ]);
                 }
-
+    
                 $newLog = TimeLog::create([
                     'user_id'    => $userId,
                     'task_id'    => $taskId,
                     'project_id' => $projectId,
                     'start_time' => Carbon::now('Asia/Karachi'),
                 ]);
-
+    
                 DB::commit();
-
+    
                 return response()->json([
-                    'status'  => 'success',
-                    'message' => 'Timer started successfully.',
-                    'log'     => $newLog,
+                    'status'    => 'success',
+                    'message'   => 'Timer started successfully.',
+                    'log'       => $newLog,
                 ]);
             }
-
+    
             if ($action === 'stop') {
                 if ($activeLog && $activeLog->task_id == $taskId) {
-                    if (is_null($activeLog->end_time)) {
-                        $activeLog->update(['end_time' => Carbon::now('Asia/Karachi')]);
-
-                        DB::commit();
-
-                        return response()->json([
-                            'status'  => 'success',
-                            'message' => 'Timer stopped successfully.',
-                            'log'     => $activeLog,
-                        ]);
-                    } else {
-                        return response()->json([
-                            'status'  => 'error',
-                            'message' => 'Timer has already been stopped for this task.',
-                        ]);
-                    }
+                    $activeLog->update(['end_time' => Carbon::now('Asia/Karachi')]);
+    
+                    DB::commit();
+    
+                    return response()->json([
+                        'status'  => 'success',
+                        'message' => 'Timer stopped successfully.',
+                        'log'     => $activeLog,
+                    ]);
                 } else {
                     return response()->json([
                         'status'  => 'error',
@@ -586,20 +585,21 @@ class TaskController extends Controller implements HasMiddleware
                     ]);
                 }
             }
-
+    
             return response()->json(['status' => 'error', 'message' => 'Invalid action.']);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error saving time log for user: ' . $userId, [
                 'error' => $e->getMessage(),
             ]);
-
+    
             return response()->json([
                 'status'  => 'error',
                 'message' => 'An error occurred while saving the time log.',
             ]);
         }
     }
+    
 
     public function re_assign_task(Request $request)
     {

@@ -357,13 +357,13 @@
         </div>
         <!-- Delayed Tasks -->
         <div id="delayed-tasks" class="tab-pane fade in side-pane">
-            <div class="card shadow mb-4 mt-4  w-100">
+            <div class="card shadow mb-4 mt-4 w-100">
                 <div class="card-header p-3 table-heading">
                     <h6>Delayed Tasks</h6>
                 </div>
                 <div class="card-body table-body p-0">
-                    <div class="table-responsive ">
-                        <table class="table table-hover p-5" id="dataTable" width="100%" cellspacing="0">
+                    <div class="table-responsive">
+                        <table class="table table-hover p-5" id="delayedTasksTable" width="100%" cellspacing="0">
                             <thead class="table-head">
                                 <tr class="table-light">
                                     <th>Project ID</th>
@@ -371,62 +371,32 @@
                                     <th>Task Name/Type</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>18404952</td>
-                                    <td>27805</td>
-                                    <td>Commercial Demolition Solutions, LLC / Business Card</td>
-                                </tr>
-                                <tr>
-                                    <td>18404952</td>
-                                    <td>27805</td>
-                                    <td>Commercial Demolition Solutions, LLC / Business Card</td>
-                                </tr>
-                                <tr>
-                                    <td>18404952</td>
-                                    <td>27805</td>
-                                    <td>Commercial Demolition Solutions, LLC / Business Card</td>
-                                </tr>
-                                <!-- End of row repeat -->
+                            <tbody id="delayedTasksTableBody">
+                                <!-- Data will be injected here -->
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- Projects without any Tasks-->
         <div id="project-without-tasks" class="tab-pane fade in side-pane">
-            <div class="card shadow mb-4 mt-4  w-100">
+            <div class="card shadow mb-4 mt-4 w-100">
                 <div class="card-header p-3 table-heading">
                     <h6>Projects without any Tasks</h6>
                 </div>
                 <div class="card-body table-body p-0">
-                    <div class="table-responsive ">
-                        <table class="table table-hover p-5" id="dataTable" width="100%" cellspacing="0">
+                    <div class="table-responsive">
+                        <table class="table table-hover p-5" id="projectsWithoutTasksTable" width="100%"
+                            cellspacing="0">
                             <thead class="table-head">
                                 <tr class="table-light">
                                     <th>Project ID</th>
-                                    <th>Task Name/Type</th>
+                                    <th>Project Name</th>
                                     <th>Source</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>Walker Rice, Lifted</td>
-                                    <td>Commercial Demolition Solutions, LLC / Business Card</td>
-                                    <td>GoMedia Upwork</td>
-                                </tr>
-                                <tr>
-                                    <td>Walker Rice, Lifted</td>
-                                    <td>Commercial Demolition Solutions, LLC / Business Card</td>
-                                    <td>GoMedia Upwork</td>
-                                </tr>
-                                <tr>
-                                    <td>Walker Rice, Lifted</td>
-                                    <td>Commercial Demolition Solutions, LLC / Business Card</td>
-                                    <td>GoMedia Upwork</td>
-                                </tr>
-                                <!-- End of row repeat -->
+                            <tbody id="projectsWithoutTasksTableBody">
+                                <!-- Data will be injected here -->
                             </tbody>
                         </table>
                     </div>
@@ -478,13 +448,14 @@
         </div>
         <!-- Pending Payments-->
         <div id="pending-payments" class="tab-pane fade in side-pane">
-            <div class="card shadow mb-4 mt-4  w-100">
+            <div class="card shadow mb-4 mt-4 w-100">
                 <div class="card-header p-3 table-heading">
                     <h6>Pending Payments</h6>
                 </div>
                 <div class="card-body table-body p-0">
-                    <div class="table-responsive ">
-                        <table class="table table-hover p-5" id="dataTable" width="100%" cellspacing="0">
+                    <div class="table-responsive">
+                        <table class="table table-hover p-5" id="pendingPaymentsTable" width="100%"
+                            cellspacing="0">
                             <thead class="table-head">
                                 <tr class="table-light">
                                     <th>Project ID</th>
@@ -493,26 +464,8 @@
                                     <th>Source</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>Walker Rice, Lifted</td>
-                                    <td>Commercial Demolition Solutions, LLC / Business Card</td>
-                                    <td>Timetable February</td>
-                                    <td>GoMedia Upwork</td>
-                                </tr>
-                                <tr>
-                                    <td>Walker Rice, Lifted</td>
-                                    <td>Commercial Demolition Solutions, LLC / Business Card</td>
-                                    <td>Timetable February</td>
-                                    <td>GoMedia Upwork</td>
-                                </tr>
-                                <tr>
-                                    <td>Walker Rice, Lifted</td>
-                                    <td>Commercial Demolition Solutions, LLC / Business Card</td>
-                                    <td>Timetable February</td>
-                                    <td>GoMedia Upwork</td>
-                                </tr>
-                                <!-- End of row repeat -->
+                            <tbody id="pendingPaymentsTableBody">
+                                <!-- Data will be injected here -->
                             </tbody>
                         </table>
                     </div>
@@ -1073,29 +1026,14 @@
             $("#logo").click(function() {
                 location.reload();
             });
-
+            // Unassigned Task
             function fetchUnassignedTasks() {
                 $.ajax({
-                    url: "./unassigned-tasks", 
+                    url: "./unassigned-tasks",
                     type: "GET",
                     dataType: "json",
                     success: function(response) {
-                        let tableBody = $("#unassignedTasksTableBody");
-                        if (response.tasks && response.tasks.length > 0) {
-                            response.tasks.forEach(task => {
-                                let row = `
-                                <tr>
-                                    <td>${task.task_id ?? 'N/A'}</td>
-                                    <td>${task.task_name ?? 'N/A'}</td>
-                                    <td>${task.source ?? 'Unknown'}</td>
-                                </tr>`;
-                                tableBody.append(row);
-                            });
-                        } else {
-                            tableBody.append(
-                                '<tr><td colspan="3" class="text-center">No unassigned tasks found</td></tr>'
-                            );
-                        }
+                        addTasksToTable(response);
                     },
                     error: function(xhr, status, error) {
                         console.error("Error fetching tasks:", {
@@ -1104,12 +1042,166 @@
                             response: xhr.responseText
                         });
                         $("#unassignedTasksTableBody").html(
-                            '<tr><td colspan="3" class="text-center text-danger">Error loading tasks</td></tr>'
+                            '<tr><td colspan="2" class="text-center text-danger">Error loading tasks</td></tr>'
                         );
                     }
                 });
             }
-            fetchUnassignedTasks()
+
+            function addTasksToTable(tasks) {
+                let tableBody = $("#unassignedTasksTableBody");
+                tableBody.empty();
+
+                if (Array.isArray(tasks) && tasks.length > 0) {
+                    tasks.forEach((task) => {
+                        let row = `
+                    <tr id="taskRow_${task.task_id}">
+                        <td id="taskId_${task.task_id}">${task.task_id}</td>
+                        <td id="taskName_${task.task_id}">${task.task_name}</td>
+                        <td id="sourceName_${task.task_id}">${task.source_name || 'N/A'}
+                    </tr>
+                `;
+                        tableBody.append(row);
+                    });
+                } else {
+                    tableBody.append(
+                        '<tr><td colspan="2" class="text-center">No unassigned tasks found</td></tr>'
+                    );
+                }
+            }
+            fetchUnassignedTasks();
+            // Delayed Task
+            function fetchDelayedTasks() {
+                $.ajax({
+                    url: "./delayed-tasks",
+                    type: "GET",
+                    dataType: "json",
+                    success: function(response) {
+                        addDelayedTasksToTable(response);
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("Error fetching delayed tasks:", {
+                            status: status,
+                            error: error,
+                            response: xhr.responseText
+                        });
+                        $("#delayedTasksTableBody").html(
+                            '<tr><td colspan="4" class="text-center text-danger">Error loading delayed tasks</td></tr>'
+                        );
+                    }
+                });
+            }
+
+            function addDelayedTasksToTable(tasks) {
+                let tableBody = $("#delayedTasksTableBody");
+                tableBody.empty();
+
+                if (Array.isArray(tasks) && tasks.length > 0) {
+                    tasks.forEach((task) => {
+                        let row = `
+                <tr id="taskRow_${task.task_id}">
+                    <td id="projectId_${task.task_id}">${task.project_id}</td>
+                    <td id="taskId_${task.task_id}">${task.task_id}</td>
+                    <td id="taskName_${task.task_id}">${task.task_name}</td>
+                </tr>
+            `;
+                        tableBody.append(row);
+                    });
+                } else {
+                    tableBody.append(
+                        '<tr><td colspan="4" class="text-center">No delayed tasks found</td></tr>' // Adjust colspan to 4
+                    );
+                }
+            }
+            fetchDelayedTasks();
+            // Function to fetch projects without tasks
+            function fetchProjectsWithoutTasks() {
+                $.ajax({
+                    url: "./projects-without-tasks",
+                    type: "GET",
+                    dataType: "json",
+                    success: function(response) {
+                        addProjectsWithoutTasksToTable(response);
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("Error fetching projects without tasks:", {
+                            status: status,
+                            error: error,
+                            response: xhr.responseText
+                        });
+                        $("#projectsWithoutTasksTableBody").html(
+                            '<tr><td colspan="3" class="text-center text-danger">Error loading projects</td></tr>'
+                        );
+                    }
+                });
+            }
+
+            function addProjectsWithoutTasksToTable(projects) {
+                let tableBody = $("#projectsWithoutTasksTableBody");
+                tableBody.empty();
+
+                if (Array.isArray(projects) && projects.length > 0) {
+                    projects.forEach((project) => {
+                        let row = `
+                <tr id="projectRow_${project.project_id}">
+                    <td id="projectId_${project.project_id}">${project.project_id}</td>
+                    <td id="projectName_${project.project_id}">${project.project_name}</td>
+                    <td id="sourceName_${project.project_id}">${project.source_name || 'N/A'}</td>
+                </tr>
+            `;
+                        tableBody.append(row);
+                    });
+                } else {
+                    tableBody.append(
+                        '<tr><td colspan="3" class="text-center">No projects without tasks found</td></tr>'
+                    );
+                }
+            }
+            fetchProjectsWithoutTasks();
+            // Function to fetch pending payments
+            function fetchPendingPayments() {
+                $.ajax({
+                    url: "./pending-payments", 
+                    type: "GET",
+                    dataType: "json",
+                    success: function(response) {
+                        addPendingPaymentsToTable(response); 
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("Error fetching pending payments:", {
+                            status: status,
+                            error: error,
+                            response: xhr.responseText
+                        });
+                        $("#pendingPaymentsTableBody").html(
+                            '<tr><td colspan="4" class="text-center text-danger">Error loading pending payments</td></tr>'
+                        );
+                    }
+                });
+            }
+            function addPendingPaymentsToTable(payments) {
+                let tableBody = $("#pendingPaymentsTableBody");
+                tableBody.empty(); 
+
+                if (Array.isArray(payments) && payments.length > 0) {
+                    payments.forEach((payment) => {
+                        let row = `
+                <tr id="paymentRow_${payment.payment_id}">
+                    <td id="projectId_${payment.project_id}">${payment.project_id}</td>
+                    <td id="taskName_${payment.payment_id}">${payment.title || 'N/A'}</td>
+                    <td id="milestone_${payment.payment_id}">${payment.remaining_payment}</td> <!-- Assuming this is the milestone -->
+                    <td id="sourceName_${payment.payment_id}">${payment.source_name || 'N/A'}</td>
+                </tr>
+            `;
+                        tableBody.append(row);
+                    });
+                } else {
+                    tableBody.append(
+                        '<tr><td colspan="4" class="text-center">No pending payments found</td></tr>'
+                    );
+                }
+            }
+            fetchPendingPayments();
         </script>
     @endsection
 </x-app-layout>

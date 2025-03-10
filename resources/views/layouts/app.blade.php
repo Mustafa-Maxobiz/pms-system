@@ -111,6 +111,7 @@
         $(document).on("keydown", "form", function(event) {
             return event.key != "Enter";
         });
+        
         var input = document.querySelector('#tags');
         new Tagify(input, {
             delimiter: ',', // Separate tags by commas
